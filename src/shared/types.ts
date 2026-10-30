@@ -55,6 +55,15 @@ export interface SessionLog {
   content: string;
 }
 
+export interface SessionRecord {
+  id: string;
+  title: string;
+  hostId?: string;
+  status: 'connected' | 'disconnected' | 'connecting' | 'error';
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   accentColor: '#3b82f6',

@@ -1,5 +1,6 @@
 import type { WebContents } from 'electron';
-import { Client, type ConnectConfig, type ClientChannel, type SFTPWrapper } from 'ssh2';
+import { Client, type ClientChannel, type ConnectConfig, type SFTPWrapper } from 'ssh2';
+import { LoggerService } from './LoggerService.js';
 import type { ConnectionHost, ConnectionStatus } from '../../shared/types.js';
 
 export interface SSHSession {
@@ -9,15 +10,12 @@ export interface SSHSession {
 
 export class SSHConnectionManager {
   private readonly sessions = new Map<string, SSHSession>();
+  private readonly logger = new LoggerService();
 
   async connect(host: ConnectionHost, sender?: WebContents): Promise<ConnectionStatus> {
     const client = new Client();
 
-    await new Promise<void>((resolve, reject) => {
-      client.once('ready', () => resolve());
-      client.once('error', (error) => reject(error));
-      client.once('close', () => this.sessions.delete(host.id));
-
+    try {
       const config: ConnectConfig = {
         host: host.host,
         port: host.port || 22,
@@ -30,39 +28,46 @@ export class SSHConnectionManager {
         keepaliveCountMax: 3
       };
 
-      client.connect(config);
-    }).catch((error) => {
+      await new Promise<void>((resolve, reject) => {
+        client.once('ready', () => resolve());
+        client.once('error', (error) => reject(error));
+        client.once('close', () => this.sessions.delete(host.id));
+        client.connect(config);
+      });
+
+      const shell = await new Promise<ClientChannel>((resolve, reject) => {
+        client.shell({ term: 'xterm-256color', cols: 120, rows: 40 }, (error, stream) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(stream);
+          }
+        });
+      });
+
+      shell.on('data', (data: Buffer) => {
+        sender?.send('ssh:output', data.toString());
+      });
+
+      this.sessions.set(host.id, { client, shell });
+
+      return {
+        id: host.id,
+        host: host.host,
+        status: 'connected',
+        startedAt: new Date().toISOString()
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown connection error';
+      this.logger.error(`SSH connection failed for ${host.host}`, message);
       return {
         id: host.id,
         host: host.host,
         status: 'error',
         startedAt: new Date().toISOString(),
-        errorMessage: (error as Error).message
-      } as ConnectionStatus;
-    });
-
-    const shell = await new Promise<ClientChannel>((resolve, reject) => {
-      client.shell({ term: 'xterm-256color', cols: 120, rows: 40 }, (error, stream) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(stream);
-        }
-      });
-    });
-
-    shell.on('data', (data: Buffer) => {
-      sender?.send('ssh:output', data.toString());
-    });
-
-    this.sessions.set(host.id, { client, shell });
-
-    return {
-      id: host.id,
-      host: host.host,
-      status: 'connected',
-      startedAt: new Date().toISOString()
-    };
+        errorMessage: message
+      };
+    }
   }
 
   async disconnect(hostId: string): Promise<boolean> {
@@ -77,8 +82,8 @@ export class SSHConnectionManager {
     return true;
   }
 
-  writeToActiveSession(data: string): void {
-    const active = [...this.sessions.values()][0];
+  writeToActiveSession(data: string, hostId?: string): void {
+    const active = hostId ? this.sessions.get(hostId) : [...this.sessions.values()][0];
     if (active && active.shell) {
       active.shell.write(data);
     }

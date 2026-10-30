@@ -1,8 +1,10 @@
 import { app, BrowserWindow, Menu, Notification, Tray, ipcMain } from 'electron';
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { DatabaseService } from '../backend/services/DatabaseService.js';
 import { SettingsService } from '../backend/services/SettingsService.js';
 import { SSHConnectionManager } from '../backend/services/SSHConnectionManager.js';
+import { SessionManager } from '../backend/services/SessionManager.js';
 import type { AppSettings, ConnectionHost } from '../shared/types.js';
 
 const isDevelopment = !app.isPackaged;
@@ -12,6 +14,7 @@ let tray: Tray | null = null;
 const databaseService = new DatabaseService();
 const settingsService = new SettingsService(databaseService);
 const sshManager = new SSHConnectionManager();
+const sessionManager = new SessionManager(databaseService);
 
 async function initializeApplication() {
   await databaseService.initialize();
@@ -54,7 +57,7 @@ function createTray() {
   }
 
   const trayIconPath = path.join(process.cwd(), 'assets', 'tray-icon.png');
-  if (require('node:fs').existsSync(trayIconPath)) {
+  if (existsSync(trayIconPath)) {
     tray = new Tray(trayIconPath);
     const contextMenu = Menu.buildFromTemplate([
       { label: 'Show app', click: () => mainWindow?.show() },
@@ -74,9 +77,30 @@ function registerIpcHandlers() {
   ipcMain.handle('hosts:list', async () => databaseService.listHosts());
   ipcMain.handle('hosts:save', async (_event, host: ConnectionHost) => databaseService.upsertHost(host));
   ipcMain.handle('hosts:delete', async (_event, hostId: string) => databaseService.deleteHost(hostId));
+  ipcMain.handle('sessions:list', async () => sessionManager.listSessions());
+  ipcMain.handle('sessions:create', async (_event, payload: { id: string; title: string; hostId?: string; status?: string }) =>
+    sessionManager.createSession({
+      id: payload.id,
+      title: payload.title,
+      hostId: payload.hostId,
+      status: (payload.status as 'connected' | 'disconnected' | 'connecting' | 'error') ?? 'connected',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    })
+  );
 
   ipcMain.handle('ssh:connect', async (event, host: ConnectionHost) => {
     const status = await sshManager.connect(host, event.sender);
+    if (status.status === 'connected') {
+      await sessionManager.createSession({
+        id: host.id,
+        title: host.name,
+        hostId: host.id,
+        status: 'connected',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
     return status;
   });
 

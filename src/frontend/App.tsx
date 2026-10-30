@@ -41,6 +41,7 @@ export function App() {
   const [hosts, setHosts] = useState<ConnectionHost[]>(sampleHosts);
   const [selectedHostId, setSelectedHostId] = useState<string>(sampleHosts[0].id);
   const [form, setForm] = useState({ name: '', host: '', port: 22, username: '', password: '', favorite: false });
+  const [connectionStatus, setConnectionStatus] = useState<string>('Idle');
 
   useEffect(() => {
     void window.xtermApp.settings.get().then((current) => setSettings(current)).catch(() => undefined);
@@ -80,10 +81,9 @@ export function App() {
 
   const connectHost = async (host: ConnectionHost) => {
     setSelectedHostId(host.id);
+    setConnectionStatus('Connecting...');
     const result = await window.xtermApp.ssh.connect(host);
-    if (result.status === 'error') {
-      console.error(result.errorMessage ?? 'Connection failed');
-    }
+    setConnectionStatus(result.status === 'connected' ? 'Connected' : result.status === 'error' ? `Error: ${result.errorMessage ?? 'Unknown error'}` : 'Disconnected');
   };
 
   return (
@@ -132,6 +132,11 @@ export function App() {
             <button className="rounded-xl bg-brand-600 px-3 py-2 text-sm text-white">Toggle theme</button>
           </div>
         </header>
+
+        <div className="mb-4 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-200">
+          <span>Connection state</span>
+          <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-emerald-300">{connectionStatus}</span>
+        </div>
 
         <div className="grid h-[calc(100%-80px)] gap-5 xl:grid-cols-[320px_1fr]">
           <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4">

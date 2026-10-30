@@ -11,6 +11,10 @@ const api = {
     save: (host: ConnectionHost): Promise<ConnectionHost> => ipcRenderer.invoke('hosts:save', host),
     delete: (hostId: string): Promise<boolean> => ipcRenderer.invoke('hosts:delete', hostId)
   },
+  sessions: {
+    list: (): Promise<Array<{ id: string; title: string; hostId?: string; status: string; createdAt: string; updatedAt: string }>> => ipcRenderer.invoke('sessions:list'),
+    create: (payload: { id: string; title: string; hostId?: string; status?: string }): Promise<{ id: string; title: string; hostId?: string; status: string }> => ipcRenderer.invoke('sessions:create', payload)
+  },
   ssh: {
     connect: (host: ConnectionHost): Promise<ConnectionStatus> => ipcRenderer.invoke('ssh:connect', host),
     disconnect: (hostId: string): Promise<boolean> => ipcRenderer.invoke('ssh:disconnect', hostId),
