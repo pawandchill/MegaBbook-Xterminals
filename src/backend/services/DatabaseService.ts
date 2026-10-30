@@ -34,7 +34,7 @@ export class DatabaseService {
     this.db = new sqlite3.Database(dbPath);
   }
 
-  private async run(sql: string, params: unknown[] = []): Promise<void> {
+  public async run(sql: string, params: unknown[] = []): Promise<void> {
     await this.ensureDatabase();
     return new Promise<void>((resolve, reject) => {
       this.db!.run(sql, params, (error) => {
@@ -47,7 +47,7 @@ export class DatabaseService {
     });
   }
 
-  private async all<T>(sql: string, params: unknown[] = []): Promise<T[]> {
+  public async all<T>(sql: string, params: unknown[] = []): Promise<T[]> {
     await this.ensureDatabase();
     return new Promise<T[]>((resolve, reject) => {
       this.db!.all(sql, params, (error, rows) => {
@@ -60,7 +60,7 @@ export class DatabaseService {
     });
   }
 
-  private async get<T>(sql: string, params: unknown[] = []): Promise<T | undefined> {
+  public async get<T>(sql: string, params: unknown[] = []): Promise<T | undefined> {
     await this.ensureDatabase();
     return new Promise<T | undefined>((resolve, reject) => {
       this.db!.get(sql, params, (error, row) => {

@@ -1,41 +1,53 @@
 # MegaBbook Xterminal Architecture
 
-## 1. Overview
+## Overview
 
-MegaBbook Xterminal is a Windows desktop terminal and SSH client built on Electron, React, TypeScript, xterm.js, and SSH2. The architecture is organized into a shell runtime, a structured service layer, and a persistent local data layer designed for enterprise workstation use.
+MegaBbook Xterminal is a Windows desktop SSH and terminal client with a layered architecture designed for enterprise reliability and low-latency terminal interaction. The application separates shell control, state, persistence, and UI concerns so each subsystem can evolve independently without affecting the user workflow.
 
-## 2. Runtime components
+## Layers
 
-- Electron main process: window lifecycle, tray features, IPC, app bootstrap
-- Renderer process: terminal UI, connection manager UI, settings and host management views
-- Service layer: database, settings, SSH, SFTP, credentials
-- Data layer: SQLite local storage and Windows Credential Manager
+### 1. Presentation layer
+- Electron shell for Windows desktop runtime
+- React + TypeScript UI for dashboard and terminal workspaces
+- Tailwind styling and reusable UI primitives
+- xterm.js integration for high-performance terminal rendering
 
-## 3. Security model
+### 2. Application layer
+- IPC bridge between Electron main process and renderer
+- State orchestration for sessions, hosts, and settings
+- Search, notifications, and connection lifecycle coordination
 
-- Credentials are maintained through keytar for native Windows Credential Manager storage
-- Host passwords are not exposed through UI state beyond the connection lifecycle
-- SSH sessions are isolated to dedicated service instances
-- Session logs are stored locally and structured for auditing or export later
+### 3. Domain layer
+- Connection host models
+- settings schema
+- terminal log/result models
+- session record contracts
 
-## 4. Feature lifecycle
+### 4. Infrastructure layer
+- SQLite persistence for settings and host metadata
+- ssh2 client for SSH shell and file transport
+- keytar integration with Windows Credential Manager
+- robust logging and error handling services
 
-1. Launch Electron shell
-2. Initialize the SQLite database and default settings
-3. Load saved hosts and settings into the renderer
-4. Open SSH terminal sessions on demand
-5. Provide SFTP, logs, and health management for active sessions
+## Key architectural decisions
 
-## 5. Scalability and maintainability
+- Dependency injection is used around the data layer, shell management, and settings
+- Persistence is local-first and asynchronous to preserve terminal responsiveness
+- Sessions are modeled independently from host metadata so they can recover quickly after reconnects
+- Terminal output is separated from connection state so logs and live rendering remain resilient
+- Security and credential handling are isolated into dedicated services to minimize accidental leakage
 
-- The codebase follows a clean layered structure and uses dependency injection patterns for service wiring.
-- Settings and storage are centralized behind service classes.
-- A modular SSH manager allows future expansion to multiplexed sessions, proxies, and health dashboards.
+## Runtime flow
 
-## 6. Recommended production enhancements
+1. The Electron main process initializes services and SQLite schema.
+2. The renderer loads settings and connection metadata through preload IPC handlers.
+3. User actions trigger SSH session creation or SFTP operations.
+4. Terminal output is streamed to the xterm.js terminal and persisted to logs.
+5. The UI reads state from a lightweight store while connection management remains decoupled from view logic.
 
-- Add host fingerprint validation and trust policies
-- Add broadcast command execution across selected sessions
-- Add resource-monitoring panels and dashboard telemetry
-- Expand SFTP transfer queue and progress cancellation
-- Add encrypted export and configuration import for enterprise environments
+## Scalability notes
+
+- Multiple SSH sessions are kept isolated by host ID and tracked independently.
+- UI state is intentionally lightweight and does not own connection internals.
+- Log storage is append-only for efficient retrieval of terminal activity.
+- Services are designed so additional features like port forwarding or broadcast command execution can be integrated without reworking the entire app.
