@@ -29,14 +29,6 @@ export interface ConnectionHost {
   updatedAt: string;
 }
 
-export interface TerminalTab {
-  id: string;
-  title: string;
-  hostId?: string;
-  split?: 'horizontal' | 'vertical';
-  active: boolean;
-}
-
 export interface ConnectionStatus {
   id: string;
   host: string;

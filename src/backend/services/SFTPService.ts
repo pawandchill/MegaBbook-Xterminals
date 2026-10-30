@@ -1,5 +1,5 @@
-import type { Client, SFTPWrapper } from 'ssh2';
-import type { ConnectionHost, SftpEntry } from '../../shared/types.js';
+import { type Client, type SFTPWrapper } from 'ssh2';
+import type { SftpEntry } from '../../shared/types.js';
 
 export class SFTPService {
   async listDirectory(session: Client, remotePath: string): Promise<SftpEntry[]> {
@@ -7,9 +7,9 @@ export class SFTPService {
       session.sftp((error, sftpClient) => {
         if (error) {
           reject(error);
-          return;
+        } else {
+          resolve(sftpClient);
         }
-        resolve(sftpClient);
       });
     });
 
@@ -17,9 +17,9 @@ export class SFTPService {
       sftp.readdir(remotePath, (error, items) => {
         if (error) {
           reject(error);
-          return;
+        } else {
+          resolve(items as Array<{ filename: string; attrs: { mode?: number; size?: number; mtime?: Date } }>);
         }
-        resolve(items as Array<{ filename: string; attrs: { mode?: number; size?: number; mtime?: Date } }>);
       });
     });
 
@@ -39,9 +39,9 @@ export class SFTPService {
       session.sftp((error, sftpClient) => {
         if (error) {
           reject(error);
-          return;
+        } else {
+          resolve(sftpClient);
         }
-        resolve(sftpClient);
       });
     });
 
@@ -49,9 +49,9 @@ export class SFTPService {
       sftp.fastPut(localFilePath, remotePath, (error) => {
         if (error) {
           reject(error);
-          return;
+        } else {
+          resolve();
         }
-        resolve();
       });
     });
   }
@@ -61,9 +61,9 @@ export class SFTPService {
       session.sftp((error, sftpClient) => {
         if (error) {
           reject(error);
-          return;
+        } else {
+          resolve(sftpClient);
         }
-        resolve(sftpClient);
       });
     });
 
@@ -71,9 +71,9 @@ export class SFTPService {
       sftp.fastGet(remotePath, localFilePath, (error) => {
         if (error) {
           reject(error);
-          return;
+        } else {
+          resolve();
         }
-        resolve();
       });
     });
   }
@@ -83,9 +83,9 @@ export class SFTPService {
       session.sftp((error, sftpClient) => {
         if (error) {
           reject(error);
-          return;
+        } else {
+          resolve(sftpClient);
         }
-        resolve(sftpClient);
       });
     });
 
@@ -93,21 +93,21 @@ export class SFTPService {
       sftp.mkdir(remotePath, (error) => {
         if (error) {
           reject(error);
-          return;
+        } else {
+          resolve();
         }
-        resolve();
       });
     });
   }
 
-  async delete(session: Client, remotePath: string): Promise<void> {
+  async removeEntry(session: Client, remotePath: string): Promise<void> {
     const sftp = await new Promise<SFTPWrapper>((resolve, reject) => {
       session.sftp((error, sftpClient) => {
         if (error) {
           reject(error);
-          return;
+        } else {
+          resolve(sftpClient);
         }
-        resolve(sftpClient);
       });
     });
 
@@ -115,9 +115,9 @@ export class SFTPService {
       sftp.unlink(remotePath, (error) => {
         if (error) {
           reject(error);
-          return;
+        } else {
+          resolve();
         }
-        resolve();
       });
     });
   }

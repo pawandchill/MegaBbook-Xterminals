@@ -14,8 +14,11 @@ const api = {
   ssh: {
     connect: (host: ConnectionHost): Promise<ConnectionStatus> => ipcRenderer.invoke('ssh:connect', host),
     disconnect: (hostId: string): Promise<boolean> => ipcRenderer.invoke('ssh:disconnect', hostId),
-    onOutput: (callback: (data: string) => void) => ipcRenderer.on('ssh:output', (_event, output: string) => callback(output)),
-    removeOutput: (callback: (data: string) => void) => ipcRenderer.removeListener('ssh:output', (_event, output: string) => callback(output))
+    onOutput: (callback: (output: string) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, output: string) => callback(output);
+      ipcRenderer.on('ssh:output', listener);
+      return () => ipcRenderer.removeListener('ssh:output', listener);
+    }
   },
   terminal: {
     sendData: (data: string) => ipcRenderer.send('terminal:data', data)

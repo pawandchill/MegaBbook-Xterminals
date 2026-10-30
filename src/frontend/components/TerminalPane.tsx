@@ -2,13 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { Terminal } from 'xterm';
-import type { ConnectionHost } from '../../shared/types.js';
+import type { ConnectionHost } from '../shared/types.js';
 import 'xterm/css/xterm.css';
 
 export function TerminalPane({ host }: { host?: ConnectionHost }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
-  const [status, setStatus] = useState('Ready');
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -28,10 +28,10 @@ export function TerminalPane({ host }: { host?: ConnectionHost }) {
     });
 
     const fitAddon = new FitAddon();
-    const search = new SearchAddon();
+    const searchAddon = new SearchAddon();
 
     terminal.loadAddon(fitAddon);
-    terminal.loadAddon(search);
+    terminal.loadAddon(searchAddon);
     terminal.open(containerRef.current);
     fitAddon.fit();
 
@@ -39,12 +39,12 @@ export function TerminalPane({ host }: { host?: ConnectionHost }) {
       window.xtermApp.terminal.sendData(data);
     });
 
-    window.xtermApp.ssh.onOutput((output) => {
+    const detachOutput = window.xtermApp.ssh.onOutput((output) => {
       terminal.write(output);
     });
 
     terminalRef.current = terminal;
-    setStatus(host ? `Connected to ${host.name}` : 'No active SSH session');
+    cleanupRef.current = detachOutput;
 
     terminal.write('\x1b[32mMegaBbook Xterminal ready.\x1b[0m\r\n');
 
@@ -55,6 +55,9 @@ export function TerminalPane({ host }: { host?: ConnectionHost }) {
       resizeObserver.disconnect();
       terminal.dispose();
       terminalRef.current = null;
+      if (cleanupRef.current) {
+        cleanupRef.current();
+      }
     };
   }, [host]);
 
@@ -62,7 +65,7 @@ export function TerminalPane({ host }: { host?: ConnectionHost }) {
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-panel">
       <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-4 py-2 text-xs text-slate-300">
         <span>{host ? host.name : 'Local terminal'}</span>
-        <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-emerald-300">{status}</span>
+        <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-emerald-300">Ready</span>
       </div>
       <div ref={containerRef} className="h-full w-full overflow-hidden" />
     </div>

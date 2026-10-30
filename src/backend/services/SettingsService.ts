@@ -16,12 +16,8 @@ export class SettingsService {
 
   async getSettings(): Promise<AppSettings> {
     const persisted = await this.database.getAllSettings();
-    return {
-      ...DEFAULT_SETTINGS,
-      ...Object.fromEntries(
-        Object.entries(persisted).map(([key, value]) => [key, value])
-      )
-    } as AppSettings;
+    const merged = { ...DEFAULT_SETTINGS, ...persisted } as AppSettings;
+    return merged;
   }
 
   async update(patch: Partial<AppSettings>): Promise<AppSettings> {

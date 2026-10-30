@@ -1,19 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import type { AppSettings, ConnectionHost } from '../../shared/types.js';
+import { TerminalPane } from './components/TerminalPane.js';
 
-const defaultHost: ConnectionHost = {
-  id: 'demo-host',
-  name: 'Production gateway',
-  host: 'prod.example.com',
-  port: 22,
-  username: 'admin',
-  password: '',
-  description: 'Primary production bastion',
-  tags: ['prod', 'gateway'],
-  favorite: true,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
-};
+const sampleHosts: ConnectionHost[] = [
+  {
+    id: 'prod-gateway',
+    name: 'Production Gateway',
+    host: 'prod.example.com',
+    port: 22,
+    username: 'admin',
+    tags: ['prod', 'gateway'],
+    favorite: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'staging-web',
+    name: 'Staging Web',
+    host: 'staging.example.com',
+    port: 22,
+    username: 'deploy',
+    tags: ['staging', 'web'],
+    favorite: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+];
 
 export function App() {
   const [settings, setSettings] = useState<AppSettings>({
@@ -26,21 +38,52 @@ export function App() {
     enableNotifications: true,
     savePasswords: true
   });
-  const [hosts, setHosts] = useState<ConnectionHost[]>([defaultHost]);
+  const [hosts, setHosts] = useState<ConnectionHost[]>(sampleHosts);
+  const [selectedHostId, setSelectedHostId] = useState<string>(sampleHosts[0].id);
+  const [form, setForm] = useState({ name: '', host: '', port: 22, username: '', password: '', favorite: false });
 
   useEffect(() => {
-    void window.xtermApp.settings.get().then((current) => setSettings(current)).catch(() => {});
+    void window.xtermApp.settings.get().then((current) => setSettings(current)).catch(() => undefined);
+    void window.xtermApp.hosts.list().then((stored) => {
+      if (stored.length > 0) {
+        setHosts(stored);
+        setSelectedHostId(stored[0].id);
+      }
+    }).catch(() => undefined);
   }, []);
 
-  const handleThemeChange = async () => {
-    const nextTheme = settings.theme === 'dark' ? 'light' : 'dark';
-    const nextSettings = await window.xtermApp.settings.save({ ...settings, theme: nextTheme });
-    setSettings(nextSettings);
+  const selectedHost = hosts.find((host) => host.id === selectedHostId) ?? hosts[0];
+
+  const saveHost = async () => {
+    if (!form.name || !form.host || !form.username) {
+      return;
+    }
+
+    const nextHost: ConnectionHost = {
+      id: crypto.randomUUID(),
+      name: form.name,
+      host: form.host,
+      port: form.port,
+      username: form.username,
+      password: form.password || undefined,
+      tags: ['custom'],
+      favorite: form.favorite,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const saved = await window.xtermApp.hosts.save(nextHost);
+    setHosts((current) => [saved, ...current]);
+    setSelectedHostId(saved.id);
+    setForm({ name: '', host: '', port: 22, username: '', password: '', favorite: false });
   };
 
-  const quickConnect = async () => {
-    const created = await window.xtermApp.hosts.save(defaultHost);
-    setHosts((current) => [...current, created]);
+  const connectHost = async (host: ConnectionHost) => {
+    setSelectedHostId(host.id);
+    const result = await window.xtermApp.ssh.connect(host);
+    if (result.status === 'error') {
+      console.error(result.errorMessage ?? 'Connection failed');
+    }
   };
 
   return (
@@ -78,39 +121,95 @@ export function App() {
         </div>
       </aside>
 
-      <main className="flex-1 p-5">
+      <main className="flex-1 overflow-hidden p-5">
         <header className="mb-5 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-white">Operations Console</h1>
             <p className="text-sm text-slate-400">Secure terminal access and file management</p>
           </div>
           <div className="flex gap-2">
-            <button className="rounded-xl bg-slate-800 px-3 py-2 text-sm text-slate-200" onClick={quickConnect}>Quick connect</button>
-            <button className="rounded-xl bg-brand-600 px-3 py-2 text-sm text-white" onClick={handleThemeChange}>Toggle theme</button>
+            <button className="rounded-xl bg-slate-800 px-3 py-2 text-sm text-slate-200">Quick connect</button>
+            <button className="rounded-xl bg-brand-600 px-3 py-2 text-sm text-white">Toggle theme</button>
           </div>
         </header>
 
-        <div className="grid gap-5 xl:grid-cols-[320px_1fr]">
+        <div className="grid h-[calc(100%-80px)] gap-5 xl:grid-cols-[320px_1fr]">
           <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Servers</h2>
               <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-xs text-emerald-300">{hosts.length} saved</span>
             </div>
+
+            <div className="mb-4 space-y-3 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+              <input
+                value={form.name}
+                onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none"
+                placeholder="Server name"
+              />
+              <input
+                value={form.host}
+                onChange={(event) => setForm((current) => ({ ...current, host: event.target.value }))}
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none"
+                placeholder="Host or IP"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  value={form.port}
+                  onChange={(event) => setForm((current) => ({ ...current, port: Number(event.target.value) }))}
+                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none"
+                  placeholder="Port"
+                />
+                <input
+                  value={form.username}
+                  onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))}
+                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none"
+                  placeholder="Username"
+                />
+              </div>
+              <input
+                type="password"
+                value={form.password}
+                onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none"
+                placeholder="Password (optional)"
+              />
+              <button onClick={saveHost} className="w-full rounded-xl bg-brand-600 px-3 py-2 text-sm text-white">
+                Save connection
+              </button>
+            </div>
+
             <div className="space-y-3">
               {hosts.map((host) => (
-                <div key={host.id} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                <div
+                  key={host.id}
+                  onClick={() => setSelectedHostId(host.id)}
+                  className={`cursor-pointer rounded-xl border p-3 transition ${
+                    selectedHost?.id === host.id ? 'border-brand-500 bg-slate-950' : 'border-slate-800 bg-slate-950/70'
+                  }`}
+                >
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="font-medium text-white">{host.name}</div>
                       <div className="text-xs text-slate-400">{host.host}:{host.port}</div>
                     </div>
-                    <div className="rounded-full bg-emerald-500/15 px-2 py-1 text-xs text-emerald-300">online</div>
+                    <div className="rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] text-emerald-300">online</div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {host.tags.map((tag) => (
                       <span key={tag} className="rounded-md bg-slate-800 px-2 py-1 text-[10px] uppercase tracking-wider text-slate-300">{tag}</span>
                     ))}
                   </div>
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void connectHost(host);
+                    }}
+                    className="mt-3 w-full rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-200"
+                  >
+                    Connect
+                  </button>
                 </div>
               ))}
             </div>
@@ -124,10 +223,14 @@ export function App() {
                 <span className="rounded-full bg-slate-800 px-2 py-1">SSH</span>
               </div>
             </div>
-            <div className="h-[70vh] rounded-2xl border border-slate-800 bg-slate-950 p-2">
-              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-950 text-slate-400">
-                Terminal surface ready for live SSH session
-              </div>
+            <div className="h-[calc(100%-40px)] min-h-[480px] rounded-2xl bg-slate-950 p-2">
+              {selectedHost ? (
+                <TerminalPane host={selectedHost} />
+              ) : (
+                <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-950 text-slate-400">
+                  No active SSH session
+                </div>
+              )}
             </div>
           </section>
         </div>

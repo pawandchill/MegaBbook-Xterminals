@@ -1,88 +1,41 @@
 # MegaBbook Xterminal Architecture
 
-## 1. System overview
+## 1. Overview
 
-MegaBbook Xterminal is structured as a layered desktop application with a secure transport layer, service layer, data layer, and modern UI layer. The architecture is designed for thousands of sessions while emphasizing reliability, maintainability, and security.
+MegaBbook Xterminal is a Windows desktop terminal and SSH client built on Electron, React, TypeScript, xterm.js, and SSH2. The architecture is organized into a shell runtime, a structured service layer, and a persistent local data layer designed for enterprise workstation use.
 
-## 2. Layered architecture
+## 2. Runtime components
 
-### Presentation layer
-- Electron shell and application window
-- React + TypeScript frontend
-- xterm.js terminal client surface
-- Tailwind-based design system for Fluent-inspired UI
+- Electron main process: window lifecycle, tray features, IPC, app bootstrap
+- Renderer process: terminal UI, connection manager UI, settings and host management views
+- Service layer: database, settings, SSH, SFTP, credentials
+- Data layer: SQLite local storage and Windows Credential Manager
 
-### Application layer
-- Settings orchestration
-- Connection manager
-- SFTP service orchestration
-- Terminal session lifecycle manager
-- Notification system and tray integration
+## 3. Security model
 
-### Service layer
-- SSHConnectionManager
-- SFTPService
-- CredentialStore
-- DatabaseService
-- SettingsService
+- Credentials are maintained through keytar for native Windows Credential Manager storage
+- Host passwords are not exposed through UI state beyond the connection lifecycle
+- SSH sessions are isolated to dedicated service instances
+- Session logs are stored locally and structured for auditing or export later
 
-### Data layer
-- SQLite local persistence
-- Windows Credential Manager integration
-- Structured session logs and host metadata
+## 4. Feature lifecycle
 
-## 3. Dependency flow
+1. Launch Electron shell
+2. Initialize the SQLite database and default settings
+3. Load saved hosts and settings into the renderer
+4. Open SSH terminal sessions on demand
+5. Provide SFTP, logs, and health management for active sessions
 
-The Electron main process owns system runtime concerns, database lifecycle, and IPC handlers. The React renderer is intentionally lightweight and communicates with the main process through context-isolated IPC channels.
+## 5. Scalability and maintainability
 
-## 4. Critical modules
+- The codebase follows a clean layered structure and uses dependency injection patterns for service wiring.
+- Settings and storage are centralized behind service classes.
+- A modular SSH manager allows future expansion to multiplexed sessions, proxies, and health dashboards.
 
-### SSHConnectionManager
-- Opens SSH shells, keeps them alive, and stream lines to the renderer
-- Supports password authentication, key-based authentication, and keep-alive
-- Handles session status transitions and health monitoring
+## 6. Recommended production enhancements
 
-### SFTPService
-- Lists remote directory contents
-- Uploads and downloads files with tracking and progress reporting
-- Supports rename, delete, create, and synchronization tasks
-
-### DatabaseService
-- Initializes SQLite schema
-- Persists settings, sessions, hosts, and logs
-- Provides clean CRUD helpers for data access
-
-### SettingsService
-- Maintains application defaults
-- Applies runtime configuration patches
-- Keeps secure and non-secure settings separated
-
-## 5. Security strategy
-
-- Credentials are kept in OS-secured storage via keytar/Windows Credential Manager.
-- SSH host keys are validated during connection establishment.
-- Password fields are never stored in plain-text if secure storage is active.
-- UI state and connection configuration are isolated via IPC boundaries.
-
-## 6. Scalability considerations
-
-- Service boundaries are shaped for horizontal feature growth.
-- SQLite is sufficient for offline local metadata and a high-volume but local workload.
-- SSH sessions are tracked individually and kept isolated from the UI lifecycle.
-- Logging events are purposely structured so they can be exported or visualized without using large in-memory buffers.
-
-## 7. Runtime phases
-
-1. Bootstrap the Electron shell and application window.
-2. Initialize the SQLite database and default settings.
-3. Load the renderer UI and connect to stored hosts.
-4. Start SSH connection workflows on demand.
-5. Report health and user notifications through the tray and notifications.
-
-## 8. Future roadmap
-
-- Broadcast commands across selected sessions
-- Session monitoring dashboard
-- Resource usage graphs
-- Plugin architecture
-- Deep host fingerprint verification and trust policy engine
+- Add host fingerprint validation and trust policies
+- Add broadcast command execution across selected sessions
+- Add resource-monitoring panels and dashboard telemetry
+- Expand SFTP transfer queue and progress cancellation
+- Add encrypted export and configuration import for enterprise environments

@@ -3,7 +3,7 @@ import { DatabaseService } from '../src/backend/services/DatabaseService.js';
 import { SettingsService } from '../src/backend/services/SettingsService.js';
 
 describe('SettingsService', () => {
-  it('loads default settings and updates them', async () => {
+  it('creates default settings and applies updates', async () => {
     const database = new DatabaseService();
     const settingsService = new SettingsService(database);
 

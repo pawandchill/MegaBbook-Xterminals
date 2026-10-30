@@ -4,8 +4,8 @@
 
 - Node.js 20+
 - npm 10+
-- Windows 11 or Windows Server 2022 for end-user packaging
-- A system with Git installed
+- Windows 11 or Windows Server 2022
+- Git
 
 ## Local development
 
@@ -14,32 +14,25 @@ npm install
 npm run dev
 ```
 
-## Type-checking and testing
-
-```bash
-npm run typecheck
-npm run test
-```
-
 ## Production build
 
 ```bash
 npm run build
 ```
 
-The build command compiles the React frontend, transpiles Electron main-process TypeScript, and packages the app as a Windows NSIS installer in `dist-release/`.
+This will create the Windows installer package in `dist-release`.
 
-## Packaging nuances
+## Testing and validation
 
-- The generated Windows application targets the `win` platform and uses `electron-builder`.
-- The `assets` directory should include a valid icon for the installer and tray icon.
-- Production deployments should sign the Windows executables with a trusted certificate for enterprise rollout.
+```bash
+npm run typecheck
+npm run test
+```
 
-## Recommended CI/CD pipeline
+## Recommended CI/CD
 
-1. Install dependencies
-2. Run lint and typecheck
-3. Run unit tests
-4. Build the Windows package
-5. Upload artifacts to a release store
-6. Deploy via internal software distribution management
+- install dependencies
+- run lint and typecheck
+- run Vitest unit tests
+- build the Windows package
+- upload the installer to an internal software distribution channel

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import sqlite3 from 'sqlite3';
-import type { AppSettings, ConnectionHost } from '../../shared/types.js';
+import type { AppSettings, ConnectionHost } from '../shared/types.js';
 
 export class DatabaseService {
   private db: sqlite3.Database | null = null;
@@ -22,8 +22,21 @@ export class DatabaseService {
     return path.join(process.cwd(), '.megabbook-xterminal', 'megabbook-xterminal.db');
   }
 
+  private async ensureDatabase(): Promise<void> {
+    if (this.db) {
+      return;
+    }
+
+    const dbPath = this.resolveDatabasePath();
+    const directory = path.dirname(dbPath);
+    fs.mkdirSync(directory, { recursive: true });
+
+    this.db = new sqlite3.Database(dbPath);
+  }
+
   private async run(sql: string, params: unknown[] = []): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
+    await this.ensureDatabase();
+    return new Promise<void>((resolve, reject) => {
       this.db!.run(sql, params, (error) => {
         if (error) {
           reject(error);
@@ -53,23 +66,11 @@ export class DatabaseService {
       this.db!.get(sql, params, (error, row) => {
         if (error) {
           reject(error);
-          return;
+        } else {
+          resolve((row as T | undefined) ?? undefined);
         }
-        resolve((row as T | undefined) ?? undefined);
       });
     });
-  }
-
-  private async ensureDatabase(): Promise<void> {
-    if (this.db) {
-      return;
-    }
-
-    const dbPath = this.resolveDatabasePath();
-    const directory = path.dirname(dbPath);
-    fs.mkdirSync(directory, { recursive: true });
-
-    this.db = new sqlite3.Database(dbPath);
   }
 
   async initialize(): Promise<void> {
@@ -161,7 +162,7 @@ export class DatabaseService {
   }
 
   async upsertHost(host: ConnectionHost): Promise<ConnectionHost> {
-    const serializedTags = JSON.stringify(host.tags ?? []);
+    const tagsJson = JSON.stringify(host.tags ?? []);
     await this.run(
       `
         INSERT INTO connection_hosts (
@@ -194,7 +195,7 @@ export class DatabaseService {
         host.passphrase ?? null,
         host.description ?? null,
         host.group ?? null,
-        serializedTags,
+        tagsJson,
         host.favorite ? 1 : 0,
         host.recent ? 1 : 0,
         host.createdAt,
@@ -222,7 +223,7 @@ export class DatabaseService {
       recent: number;
       created_at: string;
       updated_at: string;
-    }>(`SELECT * FROM connection_hosts ORDER BY updated_at DESC`);
+    }>('SELECT * FROM connection_hosts ORDER BY updated_at DESC');
 
     return rows.map((row) => ({
       id: row.id,
@@ -246,5 +247,11 @@ export class DatabaseService {
   async deleteHost(hostId: string): Promise<boolean> {
     await this.run('DELETE FROM connection_hosts WHERE id = ?', [hostId]);
     return true;
+  }
+
+  async saveSettings(settings: Partial<AppSettings>): Promise<void> {
+    for (const [key, value] of Object.entries(settings)) {
+      await this.setSetting(key, value);
+    }
   }
 }

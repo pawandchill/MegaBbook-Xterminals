@@ -1,6 +1,4 @@
-import { defineConfig } from 'tailwindcss';
-
-export default {
+module.exports = {
   content: ['./index.html', './src/frontend/**/*.{ts,tsx}'],
   theme: {
     extend: {

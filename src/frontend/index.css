@@ -24,12 +24,17 @@ html, body, #root {
 
 body {
   min-height: 100vh;
+  color: #f8fafc;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 button {
   cursor: pointer;
 }
 
-* {
-  box-sizing: border-box;
+input {
+  font: inherit;
 }

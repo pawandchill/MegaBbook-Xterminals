@@ -1,13 +1,14 @@
 import { app, BrowserWindow, Menu, Notification, Tray, ipcMain } from 'electron';
 import path from 'node:path';
-import { DatabaseService } from '../backend/services/DatabaseService.js';
-import { SettingsService } from '../backend/services/SettingsService.js';
-import { SSHConnectionManager } from '../backend/services/SSHConnectionManager.js';
-import type { AppSettings, ConnectionHost, ConnectionStatus } from '../shared/types.js';
+import { DatabaseService } from './services/DatabaseService.js';
+import { SettingsService } from './services/SettingsService.js';
+import { SSHConnectionManager } from './services/SSHConnectionManager.js';
+import type { AppSettings, ConnectionHost } from '../shared/types.js';
 
 const isDevelopment = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+
 const databaseService = new DatabaseService();
 const settingsService = new SettingsService(databaseService);
 const sshManager = new SSHConnectionManager();
@@ -40,7 +41,6 @@ function createWindow() {
   }
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -67,28 +67,18 @@ function createTray() {
 
 function registerIpcHandlers() {
   ipcMain.handle('settings:get', async () => settingsService.getSettings());
-
   ipcMain.handle('settings:save', async (_event, patch: Partial<AppSettings>) => settingsService.update(patch));
-
   ipcMain.handle('hosts:list', async () => databaseService.listHosts());
-
   ipcMain.handle('hosts:save', async (_event, host: ConnectionHost) => databaseService.upsertHost(host));
-
   ipcMain.handle('hosts:delete', async (_event, hostId: string) => databaseService.deleteHost(hostId));
 
   ipcMain.handle('ssh:connect', async (event, host: ConnectionHost) => {
-    const session = await sshManager.connect(host, event.sender);
-    return session;
+    const status = await sshManager.connect(host, event.sender);
+    return status;
   });
 
-  ipcMain.handle('ssh:disconnect', async (_event, hostId: string) => {
-    const disconnected = await sshManager.disconnect(hostId);
-    return disconnected;
-  });
-
-  ipcMain.on('terminal:data', (_event, data: string) => {
-    sshManager.writeToActiveSession(data);
-  });
+  ipcMain.handle('ssh:disconnect', async (_event, hostId: string) => sshManager.disconnect(hostId));
+  ipcMain.on('terminal:data', (_event, data: string) => sshManager.writeToActiveSession(data));
 }
 
 app.whenReady().then(async () => {
@@ -104,7 +94,7 @@ app.whenReady().then(async () => {
 
   new Notification({
     title: 'MegaBbook Xterminal',
-    body: 'Application initialized successfully.'
+    body: 'Application initialized.'
   }).show();
 });
 
