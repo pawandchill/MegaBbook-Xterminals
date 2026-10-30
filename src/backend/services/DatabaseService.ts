@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import sqlite3 from 'sqlite3';
-import type { AppSettings, ConnectionHost } from '../shared/types.js';
+import type { AppSettings, ConnectionHost } from '../../shared/types.js';
 
 export class DatabaseService {
   private db: sqlite3.Database | null = null;

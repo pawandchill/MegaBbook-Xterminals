@@ -1,8 +1,8 @@
 import { app, BrowserWindow, Menu, Notification, Tray, ipcMain } from 'electron';
 import path from 'node:path';
-import { DatabaseService } from './services/DatabaseService.js';
-import { SettingsService } from './services/SettingsService.js';
-import { SSHConnectionManager } from './services/SSHConnectionManager.js';
+import { DatabaseService } from '../backend/services/DatabaseService.js';
+import { SettingsService } from '../backend/services/SettingsService.js';
+import { SSHConnectionManager } from '../backend/services/SSHConnectionManager.js';
 import type { AppSettings, ConnectionHost } from '../shared/types.js';
 
 const isDevelopment = !app.isPackaged;
@@ -53,16 +53,19 @@ function createTray() {
     return;
   }
 
-  tray = new Tray(path.join(process.cwd(), 'assets', 'tray-icon.png'));
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Show app', click: () => mainWindow?.show() },
-    { label: 'Hide app', click: () => mainWindow?.hide() },
-    { type: 'separator' },
-    { label: 'Quit', click: () => app.quit() }
-  ]);
+  const trayIconPath = path.join(process.cwd(), 'assets', 'tray-icon.png');
+  if (require('node:fs').existsSync(trayIconPath)) {
+    tray = new Tray(trayIconPath);
+    const contextMenu = Menu.buildFromTemplate([
+      { label: 'Show app', click: () => mainWindow?.show() },
+      { label: 'Hide app', click: () => mainWindow?.hide() },
+      { type: 'separator' },
+      { label: 'Quit', click: () => app.quit() }
+    ]);
 
-  tray.setToolTip('MegaBbook Xterminal');
-  tray.setContextMenu(contextMenu);
+    tray.setToolTip('MegaBbook Xterminal');
+    tray.setContextMenu(contextMenu);
+  }
 }
 
 function registerIpcHandlers() {

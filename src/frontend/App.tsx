@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { AppSettings, ConnectionHost } from '../../shared/types.js';
+import type { AppSettings, ConnectionHost } from '../shared/types.js';
 import { TerminalPane } from './components/TerminalPane.js';
 
 const sampleHosts: ConnectionHost[] = [

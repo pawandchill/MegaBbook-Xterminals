@@ -1,14 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { Terminal } from 'xterm';
-import type { ConnectionHost } from '../shared/types.js';
+import type { ConnectionHost } from '../../shared/types.js';
 import 'xterm/css/xterm.css';
 
 export function TerminalPane({ host }: { host?: ConnectionHost }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const terminalRef = useRef<Terminal | null>(null);
-  const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -43,9 +41,6 @@ export function TerminalPane({ host }: { host?: ConnectionHost }) {
       terminal.write(output);
     });
 
-    terminalRef.current = terminal;
-    cleanupRef.current = detachOutput;
-
     terminal.write('\x1b[32mMegaBbook Xterminal ready.\x1b[0m\r\n');
 
     const resizeObserver = new ResizeObserver(() => fitAddon.fit());
@@ -54,10 +49,7 @@ export function TerminalPane({ host }: { host?: ConnectionHost }) {
     return () => {
       resizeObserver.disconnect();
       terminal.dispose();
-      terminalRef.current = null;
-      if (cleanupRef.current) {
-        cleanupRef.current();
-      }
+      detachOutput();
     };
   }, [host]);
 
